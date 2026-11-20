@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>С Днём Рождения, бабушка!</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #171413;
+            --surface: #231e1c;
+            --text: #fbf6f2;
+            --muted: #b8aba4;
+            --accent: #e5a95c;
+            --accent-soft: rgba(229, 169, 92, 0.16);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            overscroll-behavior: none;
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background: radial-gradient(circle at 50% 20%, #2c231f 0%, var(--bg) 75%);
+            color: var(--text);
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+            touch-action: pan-y;
+        }
+
+        h1, h2, .quote {
+            font-family: 'Cormorant Garamond', serif;
+        }
+
+        /* Верхняя панель: прогресс и музыка */
+        .top-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 20;
+            padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            background: linear-gradient(to bottom, rgba(23, 20, 19, 0.85), rgba(23, 20, 19, 0));
+        }
+
+        .progress-track {
+            flex: 1;
+            max-width: 600px;
+            display: flex;
+            gap: 6px;
+        }
+
+        .progress-segment {
+            flex: 1;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.18);
+            border-radius: 4px;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--accent);
+            transition: width 0.3s ease;
+        }
+
+        .progress-segment.done .progress-fill,
+        .progress-segment.active .progress-fill {
+            width: 100%;
+        }
+
+        .audio-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--surface);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            padding: 6px 12px;
+            border-radius: 999px;
+            cursor: default;
+            flex-shrink: 0;
+        }
+
+        .audio-btn {
+            background: var(--accent);
+            color: #171413;
+            border: none;
+            border-radius: 999px;
+            padding: 6px 12px;
+            font-family: inherit;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.15s ease, opacity 0.15s ease;
+        }
+
+        .audio-btn:active {
+            transform: scale(0.96);
+        }
+
+        .volume-slider {
+            width: 72px;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+
+        /* Контейнер слайдов */
+        .deck {
+            position: relative;
+            flex: 1;
+            width: 100%;
+            height: 100%;
+        }
+
+        .slide {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: calc(68px + env(safe-area-inset-top)) 16px calc(84px + env(safe-area-inset-bottom));
+            opacity: 0;
+            transform: translateX(36px) scale(0.98);
+            pointer-events: none;
+            transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        .slide.active {
+            opacity: 1;
+            transform: translateX(0) scale(1);
+            pointer-events: auto;
+        }
+
+        .slide.prev {
+            opacity: 0;
+            transform: translateX(-36px) scale(0.98);
+        }
+
+        .slide-card {
+            max-width: 920px;
+            width: 100%;
+            max-height: 100%;
+            overflow-y: auto;
+            background: rgba(35, 30, 28, 0.84);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: clamp(20px, 4vw, 44px);
+            box-shadow: 0 22px 55px rgba(0, 0, 0, 0.45);
+        }
+
+        /* Варианты компоновки слайдов */
+        .center-layout {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            min-height: 100%;
+        }
+
+        .photo-layout {
+            display: grid;
+            grid-template-columns: 1.05fr 0.95fr;
+            gap: 32px;
+            align-items: center;
+        }
+
+        .photo-frame {
+            border-radius: 18px;
+            overflow: hidden;
+            aspect-ratio: 4 / 5;
+            max-height: 60dvh;
+            width: 100%;
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
+        }
+
+        .photo-frame img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .hero-circle {
+            width: 210px;
+            height: 210px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 4px solid var(--accent);
+            box-shadow: 0 14px 35px rgba(0, 0, 0, 0.4);
+            flex-shrink: 0;
+        }
+
+        .hero-circle img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 999px;
+            background: var(--accent-soft);
+            color: var(--accent);
+            font-size: 0.74rem;
+            font-weight: 600;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            font-size: clamp(2.1rem, 7vw, 3.8rem);
+            line-height: 1.08;
+        }
+
+        h1 em {
+            color: var(--accent);
+            font-style: italic;
+        }
+
+        h2 {
+            font-size: clamp(1.75rem, 6vw, 2.9rem);
+            line-height: 1.15;
+            margin-bottom: 10px;
+            color: var(--accent);
+        }
+
+        p {
+            color: var(--muted);
+            font-size: clamp(0.92rem, 3.8vw, 1.05rem);
+            line-height: 1.58;
+        }
+
+        .quote {
+            font-size: clamp(1.2rem, 5vw, 1.8rem);
+            font-style: italic;
+            color: var(--text);
+            margin-top: 10px;
+        }
+
+        .hint {
+            font-size: 0.82rem;
+            color: var(--muted);
+        }
+
+        /* Нижняя навигация */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 20;
+            padding: 12px 16px calc(14px + env(safe-area-inset-bottom));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            background: linear-gradient(to top, rgba(23, 20, 19, 0.9), rgba(23, 20, 19, 0));
+        }
+
+        .nav-btn {
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            padding: 11px 18px;
+            border-radius: 999px;
+            font-family: inherit;
+            font-size: 0.88rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.15s ease, border-color 0.2s ease;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: #2f2825;
+            border-color: var(--accent);
+        }
+
+        .nav-btn:active:not(:disabled) {
+            transform: scale(0.96);
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        .nav-btn.primary {
+            background: var(--accent);
+            color: #171413;
+            border-color: var(--accent);
+            font-weight: 600;
+        }
+
+        .counter {
+            font-size: 0.85rem;
+            color: var(--muted);
+            min-width: 48px;
+            text-align: center;
+        }
+
+        @media (max-width: 760px) {
+            .photo-layout {
+                grid-template-columns: 1fr;
+                gap: 14px;
+                text-align: center;
+            }
+            .photo-frame {
+                aspect-ratio: 4 / 3;
+                max-height: 34dvh;
+                border-radius: 14px;
+            }
+            .hero-circle {
+                width: 148px;
+                height: 148px;
+            }
+            .volume-slider {
+                width: 56px;
+            }
+            .nav-btn {
+                padding: 10px 15px;
+                font-size: 0.84rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <audio id="bgMusic" src="music.mp3" loop preload="metadata"></audio>
+
+    <div class="top-bar">
+        <div class="progress-track" id="progressTrack"></div>
+
+        <div class="audio-controls" onclick="event.stopPropagation()">
+            <button class="audio-btn" id="musicToggle" type="button">▶ Музыка</button>
+            <input class="volume-slider" id="volumeSlider" type="range" min="0" max="1" step="0.02" value="0.5" title="Громкость">
+        </div>
+    </div>
+
+    <main class="deck" id="deck">
+        <!-- Слайд 1: Титульный -->
+        <section class="slide active" data-index="0">
+            <div class="slide-card center-layout">
+                <div class="hero-circle">
+                    <img src="hero.jpg" alt="Бабушка среди подсолнухов">
+                </div>
+                <div>
+                    <div class="tag">С Днём Рождения</div>
+                    <h1>Самой любимой <em>бабушке</em></h1>
+                </div>
+                <p class="hint">Тапай по экрану, свайпай влево/вправо или жми «Далее»</p>
+            </div>
+        </section>
+
+        <!-- Слайд 2: Цветы -->
+        <section class="slide" data-index="1">
+            <div class="slide-card photo-layout">
+                <div class="photo-frame">
+                    <img src="bouquet.jpg" alt="С праздничным букетом">
+                </div>
+                <div>
+                    <h2>Ну красота же</h2>
+                    <p>С цветами всегда выглядишь на все сто. Пусть поводов для таких фоток и просто хорошего настроения будет побольше.</p>
+                    <div class="quote">«Красиво жить не запретишь»</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 3: Настроение -->
+        <section class="slide" data-index="2">
+            <div class="slide-card photo-layout">
+                <div class="photo-frame">
+                    <img src="smile.jpg" alt="Отличное настроение">
+                </div>
+                <div>
+                    <h2>Всегда все видно</h2>
+                    <p>А даже если нет, всегда можно приблизить одним жестом!</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 4: Уют -->
+        <section class="slide" data-index="3">
+            <div class="slide-card photo-layout">
+                <div class="photo-frame">
+                    <img src="walk.jpg" alt="На скамейке">
+                </div>
+                <div>
+                    <h2>Перерыв на пролив</h2>
+                    <p>Руки в замок, вид максимально солидный. Желаю, чтоб уставать приходилось только от частого пролива.</p>
+                    <div class="quote">Пролив - это вещь!</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Слайд 5: Финал -->
+        <section class="slide" data-index="4">
+            <div class="slide-card center-layout">
+                <div class="tag">Главное — не болей</div>
+                <h2>Здоровья, радости и счастья!</h2>
+                <p style="max-width: 600px;">
+                    Желаю крепкого здоровья, чтоб ничего не беспокоило, сил хватало на всё, что хочется, и дома всегда было спокойно и тепло (И кошка по ночам не бесила)
+                </p>
+                <div class="quote" style="color: var(--accent);">Обнимаю и очень люблю ❤️</div>
+            </div>
+        </section>
+    </main>
+
+    <nav class="bottom-nav" onclick="event.stopPropagation()">
+        <button class="nav-btn" id="prevBtn" type="button">← Назад</button>
+        <span class="counter" id="counter">1 / 5</span>
+        <button class="nav-btn primary" id="nextBtn" type="button">Далее →</button>
+    </nav>
+
+    <script>
+        const slides = Array.from(document.querySelectorAll('.slide'));
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const counter = document.getElementById('counter');
+        const progressTrack = document.getElementById('progressTrack');
+        const deck = document.getElementById('deck');
+
+        let current = 0;
+
+        // Полоски прогресса сверху
+        const segments = slides.map((_, idx) => {
+            const seg = document.createElement('div');
+            seg.className = 'progress-segment';
+            const fill = document.createElement('div');
+            fill.className = 'progress-fill';
+            seg.appendChild(fill);
+            seg.addEventListener('click', (e) => {
+                e.stopPropagation();
+                ensureMusicStarted();
+                goToSlide(idx);
+            });
+            progressTrack.appendChild(seg);
+            return seg;
+        });
+
+        function goToSlide(index) {
+            if (index < 0 || index >= slides.length || index === current) return;
+
+            current = index;
+
+            slides.forEach((slide, idx) => {
+                slide.classList.remove('active', 'prev');
+                if (idx === current) {
+                    slide.classList.add('active');
+                } else if (idx < current) {
+                    slide.classList.add('prev');
+                }
+            });
+
+            segments.forEach((seg, idx) => {
+                seg.classList.toggle('done', idx < current);
+                seg.classList.toggle('active', idx === current);
+            });
+
+            counter.textContent = `${current + 1} / ${slides.length}`;
+            prevBtn.disabled = current === 0;
+            nextBtn.textContent = current === slides.length - 1 ? 'В начало ↺' : 'Далее →';
+        }
+
+        function nextSlide() {
+            if (current === slides.length - 1) {
+                goToSlide(0);
+            } else {
+                goToSlide(current + 1);
+            }
+        }
+
+        function prevSlide() {
+            goToSlide(current - 1);
+        }
+
+        // Тап / клик по области слайда переключает вперёд
+        deck.addEventListener('click', () => {
+            ensureMusicStarted();
+            nextSlide();
+        });
+
+        // Свайпы влево/вправо на телефоне
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let hasSwiped = false;
+
+        deck.addEventListener('touchstart', (e) => {
+            if (!e.touches.length) return;
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            hasSwiped = false;
+        }, { passive: true });
+
+        deck.addEventListener('touchend', (e) => {
+            if (!e.changedTouches.length) return;
+            const dx = e.changedTouches[0].clientX - touchStartX;
+            const dy = e.changedTouches[0].clientY - touchStartY;
+
+            if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+                hasSwiped = true;
+                ensureMusicStarted();
+                if (dx < 0) {
+                    nextSlide();
+                } else {
+                    prevSlide();
+                }
+            }
+        }, { passive: true });
+
+        // Предотвращаем двойное срабатывание click после свайпа
+        deck.addEventListener('click', (e) => {
+            if (hasSwiped) {
+                e.stopImmediatePropagation();
+                hasSwiped = false;
+            }
+        }, true);
+
+        prevBtn.addEventListener('click', () => {
+            ensureMusicStarted();
+            prevSlide();
+        });
+
+        nextBtn.addEventListener('click', () => {
+            ensureMusicStarted();
+            nextSlide();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                e.preventDefault();
+                ensureMusicStarted();
+                nextSlide();
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                ensureMusicStarted();
+                prevSlide();
+            }
+        });
+
+        // Инициализация счётчика и первого сегмента
+        counter.textContent = `1 / ${slides.length}`;
+        segments[0].classList.add('active');
+        prevBtn.disabled = true;
+
+        // --- Музыка из файла music.mp3 ---
+        const bgMusic = document.getElementById('bgMusic');
+        const musicToggle = document.getElementById('musicToggle');
+        const volumeSlider = document.getElementById('volumeSlider');
+
+        bgMusic.volume = parseFloat(volumeSlider.value);
+        let userPaused = false;
+
+        function syncAudioUI() {
+            musicToggle.textContent = bgMusic.paused ? '▶ Музыка' : '⏸ Пауза';
+        }
+
+        function playMusic() {
+            userPaused = false;
+            bgMusic.play().then(syncAudioUI).catch(() => {});
+        }
+
+        function pauseMusic() {
+            userPaused = true;
+            bgMusic.pause();
+            syncAudioUI();
+        }
+
+        function ensureMusicStarted() {
+            if (!userPaused && bgMusic.paused) {
+                bgMusic.play().then(syncAudioUI).catch(() => {});
+            }
+        }
+
+        musicToggle.addEventListener('click', () => {
+            if (bgMusic.paused) {
+                playMusic();
+            } else {
+                pauseMusic();
+            }
+        });
+
+        volumeSlider.addEventListener('input', () => {
+            bgMusic.volume = parseFloat(volumeSlider.value);
+        });
+
+        bgMusic.addEventListener('play', syncAudioUI);
+        bgMusic.addEventListener('pause', syncAudioUI);
+    </script>
+</body>
+</html>
